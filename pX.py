@@ -1,65 +1,101 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
-plt.rcParams['text.usetex'] = True  # Enable LaTeX rendering
+plt.rcParams['text.usetex'] = True  # For pretty labels
 
 # Parameters
-N = 20
-MODULO = 10  # Change this to 100 for last 2 digits, 1000 for last 3 digits, etc.
-x_values = list(range(MODULO))
-BOX_SPACING = 0.16  # Vertical gap between boxes
+N = 50
+MODULO = 100
+x_values = range(1, MODULO)
 
-# Reduced vertical size
-plt.figure(figsize=(24, 8))
+# Ensure output folder exists
+os.makedirs("imgs", exist_ok=True)
 
-# Get tab10 colors and dim them for softer tones
-base_colors = np.array(plt.cm.tab10.colors)
-dimmed_colors = base_colors * 0.4 + np.ones_like(base_colors) * 0.6  # Blend more with white (60%)
+cycle_lengths = []
 
-# Track y-positions to stack boxes properly
-y_tracker = {n: [] for n in range(1, N + 1)}
+# Get distinct strong colors (tab10 reused per last digit)
+base_colors = plt.get_cmap('tab10').colors
 
-for x in x_values:
-    base = x % MODULO
-    n_values = list(range(1, N + 1))
-    results = [pow(base, n, MODULO) for n in n_values]
+for idx, x in enumerate(x_values):
+    n_values = np.arange(1, N + 1, dtype=int)
+    y_values = [pow(int(x), int(n), int(MODULO)) for n in n_values]
 
-    for n, val in zip(n_values, results):
-        target_y = val
-        used = y_tracker[n]
+    # Find the cycle
+    seen = []
+    for val in y_values:
+        if val in seen:
+            break
+        seen.append(val)
 
-        # Find next available y-slot to avoid overlaps
-        slot = 0
-        while any(abs(target_y + slot * BOX_SPACING - uy) < BOX_SPACING * 0.9 for uy in used):
-            slot += 1
+    cycle_len = len(seen)
+    cycle_lengths.append(cycle_len)
 
-        adj_y = target_y + slot * BOX_SPACING
-        y_tracker[n].append(adj_y)
+    # Plotting
+    plt.figure(figsize=(20, 6))
 
-        # Place text box with sharp rectangle, thin border
-        plt.text(
-            n, adj_y,
-            rf"${x}^{{{n}}} = {x**n}$",
-            fontsize=8,
-            ha='center', va='center',
-            color='black',
-            bbox=dict(
-                facecolor=dimmed_colors[x % 10],
-                edgecolor='black',
-                linewidth=0.3,              # Thinnest possible border
-                boxstyle='square,pad=0.05'  # Sharp corners, minimal padding
-            )
-        )
+    color = base_colors[x % 10]  # Use same color for same last digit
 
-# Labels and styling
-plt.title(rf"$n$ \textbf{{vs}} $x^n \bmod {MODULO}$", fontsize=22)
-plt.xlabel(r"$n$", fontsize=18)
-plt.ylabel(rf"$x^n \bmod {MODULO}$", fontsize=18)
+    # Full line for visualization
+    plt.plot(n_values, y_values, 
+             linestyle='-', 
+             color=color, 
+             alpha=0.7, 
+             linewidth=1.5)
 
-plt.xticks(range(1, N + 1))
-plt.yticks(range(MODULO))
-plt.grid(True, linestyle='--', alpha=0.4)
+    # Squares for actual cycle values only (in same color)
+    plt.scatter(n_values[:cycle_len], y_values[:cycle_len], 
+                color="black", 
+                marker='s', 
+                s=60, 
+                zorder=3, 
+                edgecolors='black', 
+                linewidths=0.5)
 
-plt.tight_layout()
-plt.savefig(f"powers_mod{MODULO}.png", dpi=300)
-plt.close()  # Close to free memory
+    # Labels & Axis
+    plt.title(rf"Cycle of $x^n \bmod {MODULO}$ for $x = {x}$", fontsize=20)
+    
+    plt.xlabel(r"Exponent $n$", fontsize=16)
+    plt.ylabel(rf"$x^n \bmod {MODULO}$", fontsize=16)
+
+    # Y-axis ticks limited to seen values only
+    plt.yticks(seen)
+    plt.ylim(-0.5, MODULO - 0.5)
+    plt.xticks(range(1, N + 1, 1))
+    plt.grid(True, linestyle='--', alpha=0.4)
+
+    # Annotate cycle values as text in the plot
+    cycle_str = ", ".join(map(str, seen))
+    plt.annotate(rf"\textbf{{Cycle}}: $\{{ {cycle_str} \}}$", 
+             xy=(0.98, 0.02), 
+             xycoords='axes fraction',
+             fontsize=14, 
+             color='white', 
+             bbox=dict(facecolor='black', alpha=0.8, edgecolor='white'),
+             ha='right', va='bottom')
+
+    # Save plot
+    filename = f"images/{str(x)[::-1].zfill(5)}_mod{MODULO:05d}_cyclesfor_{x}.png"
+    plt.tight_layout()
+    plt.savefig(filename, dpi=300)
+    plt.close()
+
+# Final summary plot: Cycle length vs x
+plt.figure(figsize=(14, 6))
+plt.plot(x_values, cycle_lengths, 
+         marker='o', 
+         color='tab:green', 
+         linestyle='-', 
+         linewidth=2)
+
+plt.title(rf"Cycle Length vs $x$ (mod {MODULO})", fontsize=20)
+plt.xlabel(r"$x$", fontsize=16)
+plt.ylabel("Cycle Length", fontsize=16)
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.xticks(x_values)
+
+plt.tight_layout(rect=[0, 0, 1, 0.95])
+plt.savefig(f"imgs/cycle_length_vs_x_mod{MODULO:05d}.png", dpi=300)
+plt.close()
+
+print("All cycle plots + summary generated!")
