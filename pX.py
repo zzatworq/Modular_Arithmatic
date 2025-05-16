@@ -75,7 +75,7 @@ for idx, x in enumerate(x_values):
              ha='right', va='bottom')
 
     # Save plot
-    filename = f"images/{str(x)[::-1].zfill(5)}_mod{MODULO:05d}_cyclesfor_{x}.png"
+    filename = f"images/{str(x).zfill(5)[::-1]}_mod{MODULO:05d}_cyclesfor_{x}.png"
     plt.tight_layout()
     plt.savefig(filename, dpi=300)
     plt.close()
